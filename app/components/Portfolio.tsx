@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { IconChart, IconPlus } from "./icons";
 
 type Holding = {
   id: string;
@@ -67,7 +68,10 @@ export default function Portfolio() {
       },
     ]);
     setShowForm(false);
-    setSym(""); setName(""); setShares(""); setBuyPrice("");
+    setSym("");
+    setName("");
+    setShares("");
+    setBuyPrice("");
     setBuyDate(new Date().toISOString().slice(0, 10));
   }
 
@@ -82,11 +86,15 @@ export default function Portfolio() {
   if (holdings.length === 0 && !showForm) {
     return (
       <div className="empty-state">
-        <div className="empty-icon">📊</div>
-        <h3>保有株を登録しよう</h3>
-        <p>購入した株を登録すると、<br />損益をリアルタイムで確認できます</p>
+        <IconChart size={40} className="empty-icon" />
+        <h3>保有資産を記録する</h3>
+        <p>
+          購入した株を登録すると、いまの評価額と
+          <br />
+          損益をまとめて確認できます。
+        </p>
         <button className="btn-primary" onClick={() => setShowForm(true)}>
-          ＋ 保有株を追加する
+          保有株を追加する
         </button>
       </div>
     );
@@ -95,24 +103,24 @@ export default function Portfolio() {
   return (
     <div className="portfolio-view">
       {holdings.length > 0 && (
-        <div className={`portfolio-summary card ${totalPnl >= 0 ? "summary-gain" : "summary-loss"}`}>
-          <div className="summary-label">ポートフォリオ全体</div>
-          <div className="summary-value">¥{fmt(totalValue)}</div>
+        <section className="card portfolio-summary">
+          <p className="eyebrow">資産合計</p>
+          <p className="summary-value num">¥{fmt(totalValue)}</p>
           <div className="summary-rows">
             <div className="sum-row">
-              <span>投資額</span>
-              <span>¥{fmt(totalCost)}</span>
+              <span>投資元本</span>
+              <span className="num">¥{fmt(totalCost)}</span>
             </div>
-            <div className="sum-row pnl-row">
-              <span>損益</span>
-              <span className={totalPnl >= 0 ? "positive" : "negative"}>
+            <div className="sum-row">
+              <span>評価損益</span>
+              <span className={`num strong ${totalPnl >= 0 ? "positive" : "negative"}`}>
                 {totalPnl >= 0 ? "+" : "-"}¥{fmt(totalPnl)}
-                <span className="pnl-pct">（{fmtPct(totalPct)}）</span>
+                <span className="pnl-pct">{fmtPct(totalPct)}</span>
               </span>
             </div>
           </div>
-          {loadingPrices && <div className="price-updating">株価を更新中...</div>}
-        </div>
+          {loadingPrices && <p className="meta-text">株価を更新しています…</p>}
+        </section>
       )}
 
       {holdings.map((h) => {
@@ -125,103 +133,74 @@ export default function Portfolio() {
         const ch = prices[h.symbol]?.change ?? 0;
 
         return (
-          <div key={h.id} className="holding-card card">
+          <section key={h.id} className="card holding-card">
             <div className="holding-top">
-              <div className="holding-info">
+              <div>
                 <div className="holding-name">{h.name}</div>
-                <div className="holding-meta">{h.symbol} · {h.shares}株</div>
+                <div className="holding-meta">
+                  {h.symbol} ・ {h.shares}株 ・ 取得 ¥{fmt(h.buyPrice)}
+                </div>
               </div>
               <div className="holding-price-block">
-                <div className="holding-cur">¥{fmt(cur)}</div>
-                <div className={`holding-ch ${ch >= 0 ? "up" : "down"}`}>
-                  {ch >= 0 ? "▲" : "▼"}{Math.abs(ch).toFixed(2)}%
+                <div className="holding-cur num">¥{fmt(cur)}</div>
+                <div className={`holding-ch num ${ch >= 0 ? "positive" : "negative"}`}>
+                  前日比 {fmtPct(ch)}
                 </div>
               </div>
             </div>
             <div className="holding-bottom">
-              <span className="holding-val">評価額 ¥{fmt(val)}</span>
-              <span className={`holding-pnl ${pnl >= 0 ? "positive" : "negative"}`}>
+              <span>評価額 <span className="num">¥{fmt(val)}</span></span>
+              <span className={`num strong ${pnl >= 0 ? "positive" : "negative"}`}>
                 {pnl >= 0 ? "+" : "-"}¥{fmt(pnl)}（{fmtPct(pct)}）
               </span>
             </div>
-            <button
-              className="btn-remove"
-              onClick={() => setHoldings((prev) => prev.filter((x) => x.id !== h.id))}
-            >
+            <button className="btn-remove" onClick={() => setHoldings((prev) => prev.filter((x) => x.id !== h.id))}>
               削除
             </button>
-          </div>
+          </section>
         );
       })}
 
       {showForm ? (
-        <div className="add-form card">
-          <h3>保有株を追加</h3>
+        <section className="card add-form">
+          <h3 className="form-section-title">保有株を追加</h3>
           <form onSubmit={addHolding}>
             <div className="form-group">
-              <label className="form-label">銘柄コード</label>
-              <input
-                className="form-input"
-                placeholder="例: 7203（トヨタ）"
-                value={sym}
-                onChange={(e) => setSym(e.target.value)}
-                required
-              />
+              <label className="form-label" htmlFor="h-sym">銘柄コード</label>
+              <input id="h-sym" className="form-input" placeholder="7203" value={sym} onChange={(e) => setSym(e.target.value)} required />
             </div>
             <div className="form-group">
-              <label className="form-label">銘柄名（任意）</label>
-              <input
-                className="form-input"
-                placeholder="例: トヨタ自動車"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
+              <label className="form-label" htmlFor="h-name">銘柄名（任意）</label>
+              <input id="h-name" className="form-input" placeholder="トヨタ自動車" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="form-row-2">
               <div className="form-group">
-                <label className="form-label">保有株数</label>
-                <input
-                  className="form-input"
-                  type="number"
-                  placeholder="100"
-                  value={shares}
-                  onChange={(e) => setShares(e.target.value)}
-                  required
-                  min="1"
-                />
+                <label className="form-label" htmlFor="h-shares">株数</label>
+                <input id="h-shares" className="form-input" type="number" placeholder="100" value={shares} onChange={(e) => setShares(e.target.value)} required min="1" />
               </div>
               <div className="form-group">
-                <label className="form-label">購入単価（円）</label>
-                <input
-                  className="form-input"
-                  type="number"
-                  placeholder="3000"
-                  value={buyPrice}
-                  onChange={(e) => setBuyPrice(e.target.value)}
-                  required
-                  min="1"
-                />
+                <label className="form-label" htmlFor="h-price">購入単価（円）</label>
+                <input id="h-price" className="form-input" type="number" placeholder="3000" value={buyPrice} onChange={(e) => setBuyPrice(e.target.value)} required min="1" />
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">購入日</label>
-              <input
-                className="form-input"
-                type="date"
-                value={buyDate}
-                onChange={(e) => setBuyDate(e.target.value)}
-                required
-              />
+              <label className="form-label" htmlFor="h-date">購入日</label>
+              <input id="h-date" className="form-input" type="date" value={buyDate} onChange={(e) => setBuyDate(e.target.value)} required />
             </div>
             <div className="form-actions">
-              <button type="button" className="btn-outline" onClick={() => setShowForm(false)}>キャンセル</button>
-              <button type="submit" className="btn-primary">追加する</button>
+              <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>
+                キャンセル
+              </button>
+              <button type="submit" className="btn-primary">
+                追加する
+              </button>
             </div>
           </form>
-        </div>
+        </section>
       ) : (
-        <button className="btn-add-holding" onClick={() => setShowForm(true)}>
-          ＋ 保有株を追加する
+        <button className="btn-dashed" onClick={() => setShowForm(true)}>
+          <IconPlus size={14} />
+          保有株を追加する
         </button>
       )}
     </div>

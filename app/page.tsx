@@ -3,8 +3,15 @@ import { useState } from "react";
 import PlanWizard from "./components/PlanWizard";
 import Portfolio from "./components/Portfolio";
 import SellCalc from "./components/SellCalc";
+import { IconCalculator, IconChart, IconCompass } from "./components/icons";
 
 type Tab = "plan" | "portfolio" | "sell";
+
+const TABS: { id: Tab; label: string; icon: typeof IconCompass }[] = [
+  { id: "plan", label: "プラン", icon: IconCompass },
+  { id: "portfolio", label: "保有資産", icon: IconChart },
+  { id: "sell", label: "売却計算", icon: IconCalculator },
+];
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("plan");
@@ -13,10 +20,10 @@ export default function Home() {
     <div className="app-shell">
       <header className="app-header">
         <div className="header-inner">
-          <span className="app-logo">📈</span>
+          <div className="brand-mark">KN</div>
           <div>
             <div className="app-title">カブナビ</div>
-            <div className="app-subtitle">AIが投資をサポート</div>
+            <div className="app-subtitle">はじめての投資ガイド</div>
           </div>
         </div>
       </header>
@@ -27,28 +34,13 @@ export default function Home() {
         {tab === "sell" && <SellCalc />}
       </main>
 
-      <nav className="bottom-nav">
-        <button
-          className={`nav-tab ${tab === "plan" ? "active" : ""}`}
-          onClick={() => setTab("plan")}
-        >
-          <span className="nav-icon">🎯</span>
-          <span className="nav-label">プラン</span>
-        </button>
-        <button
-          className={`nav-tab ${tab === "portfolio" ? "active" : ""}`}
-          onClick={() => setTab("portfolio")}
-        >
-          <span className="nav-icon">📊</span>
-          <span className="nav-label">保有株</span>
-        </button>
-        <button
-          className={`nav-tab ${tab === "sell" ? "active" : ""}`}
-          onClick={() => setTab("sell")}
-        >
-          <span className="nav-icon">💰</span>
-          <span className="nav-label">売却計算</span>
-        </button>
+      <nav className="bottom-nav" aria-label="メインナビゲーション">
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button key={id} className={`nav-tab ${tab === id ? "active" : ""}`} onClick={() => setTab(id)} aria-current={tab === id ? "page" : undefined}>
+            <Icon size={22} />
+            <span className="nav-label">{label}</span>
+          </button>
+        ))}
       </nav>
     </div>
   );
