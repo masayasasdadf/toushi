@@ -37,6 +37,7 @@ type Plan = {
     currentPrice?: number;
     priceChecked?: boolean;
     priceNote?: string;
+    valuation?: { positionPct: number; smaDeviationPct: number; overheated: boolean };
   }[];
   totalInvested: number;
   remainingCash: number;
@@ -228,6 +229,11 @@ export default function PlanWizard() {
                   </div>
                   {p.priceChecked && <span className="price-verified">リアルタイム株価で計算済み</span>}
                   {p.priceNote && <p className="price-note">{p.priceNote}</p>}
+                  {p.valuation?.overheated && (
+                    <p className="price-note">
+                      この銘柄はいま1年間の高値圏（下から{p.valuation.positionPct}%の位置）にあり、高値掴みになる可能性があります。一度に買わず、数回に分けて買うことをおすすめします。
+                    </p>
+                  )}
                 </div>
                 <div className="product-amount num">¥{fmt(p.amount)}</div>
               </div>

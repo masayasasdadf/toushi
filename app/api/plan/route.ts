@@ -42,6 +42,8 @@ export async function POST(req: NextRequest) {
 プランを作る前に、必ずWeb検索で以下を確認してから判断すること：
 - 直近の日本株市場・米国株市場の状況（日経平均・S&P500の水準とトレンド）
 - 推薦しようとしている個別株の最新ニュース（決算、不祥事、業績見通し）。悪材料が出ている銘柄は推薦しない
+- 推薦銘柄のPER・PBR・配当利回りなどの指標。市場平均や同業他社と比べて明らかに割高な銘柄は避ける
+- 推薦銘柄の次回決算発表日。決算発表が2週間以内に迫っている銘柄は株価が急変しやすいため、初心者には推薦しないか、その旨をリスクに明記する
 - 金利・為替など現在のマクロ環境
 - NISA・iDeCoの最新の制度内容（年間投資枠など）
 検索で得た事実は、銘柄選定の理由・リスク説明・市況コメントに反映すること。
@@ -146,6 +148,22 @@ simulationは積立額も含めた概算で計算すること。
             if (!price || price <= 0) return;
             p.currentPrice = Math.round(price);
             p.priceChecked = true;
+
+            // 高値掴みチェック：52週レンジ内の位置と50日移動平均からの乖離
+            const closes = q.closes;
+            const hi = Math.max(...closes);
+            const lo = Math.min(...closes);
+            const pos = hi > lo ? (price - lo) / (hi - lo) : 0.5;
+            const sma50 =
+              closes.length >= 50
+                ? closes.slice(-50).reduce((s, c) => s + c, 0) / 50
+                : closes.reduce((s, c) => s + c, 0) / closes.length;
+            const dev = (price - sma50) / sma50;
+            (p as Record<string, unknown>).valuation = {
+              positionPct: Math.round(pos * 100),
+              smaDeviationPct: Math.round(dev * 1000) / 10,
+              overheated: pos > 0.92 && dev > 0.08,
+            };
             const lot = 100;
             const lots = Math.floor(p.amount / (price * lot));
             if (lots >= 1) {

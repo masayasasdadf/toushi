@@ -11,7 +11,8 @@ type Holding = {
   buyDate: string;
 };
 
-type PriceMap = Record<string, { price: number; name: string; change: number }>;
+type Alert = { level: "danger" | "warn" | "good" | "info"; message: string };
+type PriceMap = Record<string, { price: number; name: string; change: number; stopLoss?: number; alerts?: Alert[] }>;
 
 const fmt = (n: number) => Math.round(Math.abs(n)).toLocaleString("ja-JP");
 const fmtPct = (n: number) => (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
@@ -40,12 +41,13 @@ export default function Portfolio() {
       localStorage.setItem("kabunavi_portfolio", JSON.stringify(holdings));
     } catch {}
     if (holdings.length === 0) return;
-    const symbols = [...new Set(holdings.map((h) => h.symbol))];
     setLoadingPrices(true);
-    fetch("/api/portfolio-prices", {
+    fetch("/api/watch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbols }),
+      body: JSON.stringify({
+        holdings: holdings.map((h) => ({ symbol: h.symbol, buyPrice: h.buyPrice })),
+      }),
     })
       .then((r) => r.json())
       .then(setPrices)
@@ -119,9 +121,23 @@ export default function Portfolio() {
               </span>
             </div>
           </div>
-          {loadingPrices && <p className="meta-text">株価を更新しています…</p>}
+          {loadingPrices && <p className="meta-text">株価と売り時を確認しています…</p>}
         </section>
       )}
+
+      {(() => {
+        const all = holdings.flatMap((h) => prices[h.symbol]?.alerts ?? []);
+        const danger = all.filter((a) => a.level === "danger").length;
+        const warn = all.filter((a) => a.level === "warn").length;
+        const good = all.filter((a) => a.level === "good").length;
+        if (danger > 0)
+          return <div className="portfolio-banner alert-danger">対応が必要な銘柄があります。下の赤い表示を確認してください。</div>;
+        if (warn > 0)
+          return <div className="portfolio-banner alert-warn">注意して見守りたい銘柄があります。</div>;
+        if (good > 0)
+          return <div className="portfolio-banner alert-good">利益確定を検討できる銘柄があります。</div>;
+        return null;
+      })()}
 
       {holdings.map((h) => {
         const cp = prices[h.symbol]?.price;
@@ -131,6 +147,8 @@ export default function Portfolio() {
         const pnl = val - cost;
         const pct = (pnl / cost) * 100;
         const ch = prices[h.symbol]?.change ?? 0;
+        const alerts = prices[h.symbol]?.alerts ?? [];
+        const stopLoss = prices[h.symbol]?.stopLoss;
 
         return (
           <section key={h.id} className="card holding-card">
@@ -154,6 +172,16 @@ export default function Portfolio() {
                 {pnl >= 0 ? "+" : "-"}¥{fmt(pnl)}（{fmtPct(pct)}）
               </span>
             </div>
+            {alerts.map((a, i) => (
+              <div key={i} className={`holding-alert alert-${a.level}`}>
+                {a.message}
+              </div>
+            ))}
+            {alerts.length === 0 && stopLoss != null && (
+              <p className="meta-text">
+                損切りの目安：¥{fmt(stopLoss)} を下回ったら売却を検討（現在は問題ありません）
+              </p>
+            )}
             <button className="btn-remove" onClick={() => setHoldings((prev) => prev.filter((x) => x.id !== h.id))}>
               削除
             </button>
