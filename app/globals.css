@@ -1,0 +1,316 @@
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --text: #1a202c;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --buy: #16a34a;
+  --buy-bg: #f0fdf4;
+  --sell: #dc2626;
+  --sell-bg: #fef2f2;
+  --hold: #d97706;
+  --hold-bg: #fffbeb;
+  --accent: #2563eb;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo,
+    -apple-system, sans-serif;
+  line-height: 1.7;
+}
+
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+}
+
+.header {
+  text-align: center;
+  padding: 32px 0 24px;
+}
+
+.header h1 {
+  font-size: 1.9rem;
+  letter-spacing: 0.02em;
+}
+
+.header p {
+  color: var(--muted);
+  margin-top: 8px;
+  font-size: 0.95rem;
+}
+
+.search-box {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.search-box input {
+  flex: 1;
+  padding: 14px 16px;
+  font-size: 1.05rem;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  outline: none;
+}
+
+.search-box input:focus {
+  border-color: var(--accent);
+}
+
+.search-box button {
+  padding: 14px 28px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.search-box button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 24px;
+}
+
+.examples {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.examples button {
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.error {
+  background: var(--sell-bg);
+  border: 1px solid #fecaca;
+  color: var(--sell);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.verdict {
+  text-align: center;
+  padding: 32px 24px;
+}
+
+.verdict .stock-name {
+  font-size: 1.1rem;
+  color: var(--muted);
+}
+
+.verdict .price {
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin: 4px 0;
+}
+
+.verdict .change-up { color: var(--buy); font-weight: 700; }
+.verdict .change-down { color: var(--sell); font-weight: 700; }
+
+.verdict-badge {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 14px 36px;
+  border-radius: 999px;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.verdict-buy { background: var(--buy-bg); color: var(--buy); border: 2px solid var(--buy); }
+.verdict-sell { background: var(--sell-bg); color: var(--sell); border: 2px solid var(--sell); }
+.verdict-hold { background: var(--hold-bg); color: var(--hold); border: 2px solid var(--hold); }
+
+.confidence {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.score-bar-track {
+  height: 12px;
+  background: linear-gradient(to right, #fca5a5, #fde68a, #86efac);
+  border-radius: 999px;
+  position: relative;
+  margin: 20px auto 4px;
+  max-width: 420px;
+}
+
+.score-marker {
+  position: absolute;
+  top: -7px;
+  width: 26px;
+  height: 26px;
+  background: #fff;
+  border: 3px solid var(--text);
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+
+.score-labels {
+  display: flex;
+  justify-content: space-between;
+  max-width: 420px;
+  margin: 0 auto;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.signal {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.signal:last-child { border-bottom: none; }
+
+.signal-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.signal-icon.pos { background: var(--buy-bg); color: var(--buy); }
+.signal-icon.neg { background: var(--sell-bg); color: var(--sell); }
+.signal-icon.neu { background: #f1f5f9; color: var(--muted); }
+
+.signal-name { font-size: 0.82rem; color: var(--muted); }
+.signal-summary { font-weight: 700; }
+.signal-detail { font-size: 0.88rem; color: var(--muted); margin-top: 2px; }
+
+.risk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.risk-item {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.risk-item .label { font-size: 0.82rem; color: var(--muted); }
+.risk-item .value { font-size: 1.3rem; font-weight: 800; margin-top: 4px; }
+.risk-item .value.loss { color: var(--sell); }
+.risk-item .value.gain { color: var(--buy); }
+
+.calc-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.calc-row label {
+  flex: 1;
+  min-width: 180px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.calc-row input {
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 12px;
+  font-size: 1rem;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+}
+
+.calc-result {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 0.95rem;
+}
+
+.calc-result strong { font-size: 1.2rem; }
+
+.ai-button {
+  width: 100%;
+  padding: 16px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.ai-button:disabled { opacity: 0.6; cursor: wait; }
+
+.ai-text {
+  white-space: pre-wrap;
+  font-size: 0.95rem;
+}
+
+.chart {
+  width: 100%;
+  height: 180px;
+}
+
+.disclaimer {
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 24px;
+}
