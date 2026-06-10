@@ -5,6 +5,40 @@ import { fetchQuotes } from "@/lib/fetchQuotes";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
+// JSON文字列値の中に紛れ込んだ制御文字をエスケープシーケンスに置換する
+function sanitizeJsonString(raw: string): string {
+  // JSON文字列トークン内だけを処理するためにステートマシンで走査
+  let result = "";
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    const code = raw.charCodeAt(i);
+    if (escape) {
+      result += ch;
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escape = true;
+      result += ch;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      result += ch;
+      continue;
+    }
+    if (inString && code < 0x20 && ch !== "\n" && ch !== "\r" && ch !== "\t") {
+      // 制御文字をUnicodeエスケープに変換
+      result += `\\u${code.toString(16).padStart(4, "0")}`;
+      continue;
+    }
+    result += ch;
+  }
+  return result;
+}
+
 export async function POST(req: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
@@ -167,7 +201,9 @@ simulationは積立額も含めた概算で計算すること。
         const jsonMatch = fullText.match(/\{[\s\S]*\}/);
         if (!jsonMatch) throw new Error("AIの応答からプランを読み取れませんでした");
 
-        const plan = JSON.parse(jsonMatch[0]);
+        // JSON文字列内の制御文字（タブ・改行以外）を安全にエスケープしてからパース
+        const safeJson = sanitizeJsonString(jsonMatch[0]);
+        const plan = JSON.parse(safeJson);
         status("リアルタイム株価を取得して株数を計算しています");
 
         // 個別株はAIの概算価格のままにせず、リアルタイム株価で株数・金額を組み直す
