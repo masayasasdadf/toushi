@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "カブナビ | 初心者のための株式投資判断サポート",
+  title: "中村家投資アプリ | はじめての投資ガイド",
   description:
-    "テクニカル指標とAIで投資判断をサポート。買い時・売り時・損切りラインを初心者にもわかりやすく表示します。",
+    "予算と目標を入れるだけで、AIがNISA・iDeCoの制度選びから銘柄の組み合わせ、売り時まで提案する初心者向け投資アプリ。",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

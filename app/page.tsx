@@ -20,9 +20,9 @@ export default function Home() {
     <div className="app-shell">
       <header className="app-header">
         <div className="header-inner">
-          <div className="brand-mark">KN</div>
+          <div className="brand-mark">中</div>
           <div>
-            <div className="app-title">カブナビ</div>
+            <div className="app-title">中村家投資アプリ</div>
             <div className="app-subtitle">はじめての投資ガイド</div>
           </div>
         </div>
