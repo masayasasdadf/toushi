@@ -44,7 +44,7 @@ npm run dev
 
 - **Next.js 14**(App Router)+ TypeScript — Vercelにゼロ設定でデプロイ可能
 - **株価データ**: Yahoo Finance 公開チャートAPI(サーバーサイドで取得、5分キャッシュ)
-- **AI**: Anthropic Claude API(`claude-opus-4-8`、アダプティブ思考有効)
+- **AI**: Anthropic Claude API(`claude-fable-5`、アダプティブ思考有効)
 - 外部チャートライブラリ不使用(SVGで軽量描画)
 
 ## 免責事項

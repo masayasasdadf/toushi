@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const message = await client.messages.create({
-      model: "claude-opus-4-8",
+      model: "claude-fable-5",
       max_tokens: 16000,
       thinking: { type: "enabled", budget_tokens: 8000 },
       messages: [{ role: "user", content: prompt }],
