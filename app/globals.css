@@ -367,6 +367,48 @@ fieldset.form-section legend.form-section-title + * { clear: both; }
 .loading-title { font-size: 1.02rem; font-weight: 700; }
 .loading-sub { color: var(--muted); font-size: 0.85rem; }
 
+.progress-screen { padding: 60px 20px 40px; }
+.progress-log {
+  list-style: none;
+  margin-top: 18px;
+  width: 100%;
+  max-width: 380px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.progress-log li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+.progress-log li.done { color: var(--muted); }
+.progress-log li.current { color: var(--ink); font-weight: 600; }
+.progress-marker {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 3px;
+  color: var(--accent);
+}
+.dot-pulse {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.75); }
+}
+
 /* ── Wizard ── */
 .wizard-hero { padding: 8px 4px 20px; }
 .wizard-hero h2 { font-size: 1.35rem; font-weight: 800; letter-spacing: 0.01em; margin-bottom: 6px; }

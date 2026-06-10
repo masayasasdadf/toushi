@@ -115,31 +115,64 @@ export async function POST(req: NextRequest) {
 simulationは積立額も含めた概算で計算すること。
 個別株の価格はあなたの知識時点の概算で構いません（サーバー側でリアルタイム株価を取得して株数と金額を再計算します）。`;
 
-  try {
-    const client = new Anthropic();
-    const message = await client.messages.create({
-      model: "claude-fable-5",
-      max_tokens: 20000,
-      thinking: { type: "adaptive" },
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
-      messages: [{ role: "user", content: prompt }],
-    });
+  // 進捗をNDJSONでクライアントに流すストリーミングレスポンス
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (obj: unknown) => controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
+      const status = (message: string) => send({ type: "status", message });
 
-    // 検索を挟むとtextブロックが複数に分かれるため、全て連結してからJSONを抽出する
-    const fullText = message.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("\n");
-    if (!fullText) throw new Error("AIの応答にテキストが含まれていません");
+      try {
+        const client = new Anthropic();
+        status("AIがあなたの条件を読み込んでいます");
 
-    const jsonMatch = fullText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("AIの応答からプランを読み取れませんでした");
+        const msgStream = client.messages.stream({
+          model: "claude-fable-5",
+          max_tokens: 20000,
+          thinking: { type: "adaptive" },
+          tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
+          messages: [{ role: "user", content: prompt }],
+        });
 
-    const plan = JSON.parse(jsonMatch[0]);
+        let searchCount = 0;
+        let lastPhase = "";
+        msgStream.on("streamEvent", (event) => {
+          if (event.type !== "content_block_start") return;
+          const block = event.content_block;
+          if (block.type === "server_tool_use") {
+            searchCount++;
+            status(`最新のニュース・市況をWeb検索しています（${searchCount}回目）`);
+            lastPhase = "search";
+          } else if (block.type === "web_search_tool_result") {
+            status("検索結果を読んで分析しています");
+            lastPhase = "read";
+          } else if (block.type === "thinking" && lastPhase !== "think") {
+            status(searchCount === 0 ? "条件を整理して方針を考えています" : "集めた情報をもとにプランを検討しています");
+            lastPhase = "think";
+          } else if (block.type === "text" && lastPhase !== "write") {
+            status("プランを書き起こしています");
+            lastPhase = "write";
+          }
+        });
 
-    // 個別株はAIの概算価格のままにせず、リアルタイム株価で株数・金額を組み直す
-    if (Array.isArray(plan.products)) {
-      await Promise.all(
+        const message = await msgStream.finalMessage();
+
+        // 検索を挟むとtextブロックが複数に分かれるため、全て連結してからJSONを抽出する
+        const fullText = message.content
+          .filter((b): b is Anthropic.TextBlock => b.type === "text")
+          .map((b) => b.text)
+          .join("\n");
+        if (!fullText) throw new Error("AIの応答にテキストが含まれていません");
+
+        const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("AIの応答からプランを読み取れませんでした");
+
+        const plan = JSON.parse(jsonMatch[0]);
+        status("リアルタイム株価を取得して株数を計算しています");
+
+        // 個別株はAIの概算価格のままにせず、リアルタイム株価で株数・金額を組み直す
+        if (Array.isArray(plan.products)) {
+          await Promise.all(
         plan.products.map(async (p: { type: string; code: string; amount: number; shares: number; currentPrice?: number; priceChecked?: boolean; priceNote?: string }) => {
           if (p.type !== "stock" || !/^\d{4}$/.test(p.code ?? "")) return;
           try {
@@ -180,27 +213,35 @@ simulationは積立額も含めた概算で計算すること。
         })
       );
 
-      // 実価格で組み直した後の合計と残金を再計算
-      const total = plan.products.reduce((s: number, p: { amount: number }) => s + (p.amount || 0), 0);
-      plan.totalInvested = total;
-      plan.remainingCash = Math.max(0, budget - total);
-    }
+          // 実価格で組み直した後の合計と残金を再計算
+          const total = plan.products.reduce((s: number, p: { amount: number }) => s + (p.amount || 0), 0);
+          plan.totalInvested = total;
+          plan.remainingCash = Math.max(0, budget - total);
+        }
 
-    return NextResponse.json(plan);
-  } catch (e) {
-    console.error("plan generation error:", e);
-    if (e instanceof Anthropic.AuthenticationError) {
-      return NextResponse.json({ error: "APIキーが無効です。ANTHROPIC_API_KEYの値を確認してください。" }, { status: 401 });
-    }
-    if (e instanceof Anthropic.RateLimitError) {
-      return NextResponse.json({ error: "リクエストが集中しています。1分ほど待ってからお試しください。" }, { status: 429 });
-    }
-    if (e instanceof Anthropic.APIError) {
-      return NextResponse.json({ error: `AIサービスでエラーが発生しました（${e.status}: ${e.message}）` }, { status: 502 });
-    }
-    return NextResponse.json(
-      { error: `プランの生成に失敗しました：${(e as Error).message}` },
-      { status: 500 }
-    );
-  }
+        send({ type: "plan", plan });
+      } catch (e) {
+        console.error("plan generation error:", e);
+        let errorMsg = `プランの生成に失敗しました：${(e as Error).message}`;
+        if (e instanceof Anthropic.AuthenticationError) {
+          errorMsg = "APIキーが無効です。ANTHROPIC_API_KEYの値を確認してください。";
+        } else if (e instanceof Anthropic.RateLimitError) {
+          errorMsg = "リクエストが集中しています。1分ほど待ってからお試しください。";
+        } else if (e instanceof Anthropic.APIError) {
+          errorMsg = `AIサービスでエラーが発生しました（${e.status}: ${e.message}）`;
+        }
+        send({ type: "error", error: errorMsg });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-cache",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }

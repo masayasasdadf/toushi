@@ -52,6 +52,14 @@ const parseAmount = (s: string) => parseInt(s.replace(/[,，\s]/g, "")) || 0;
 
 const SUIT_LABEL: Record<Suitability, string> = { high: "おすすめ", mid: "場合による", low: "今回は不向き" };
 
+function CheckMark() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m5 13 4 4L19 7" />
+    </svg>
+  );
+}
+
 export default function PlanWizard() {
   const [budget, setBudget] = useState("");
   const [monthly, setMonthly] = useState("");
@@ -66,6 +74,8 @@ export default function PlanWizard() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [steps, setSteps] = useState<string[]>([]);
+  const [elapsed, setElapsed] = useState(0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -77,32 +87,73 @@ export default function PlanWizard() {
     setError("");
     setLoading(true);
     setPlan(null);
+    setSteps([]);
+    setElapsed(0);
+    const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
     try {
       const res = await fetch("/api/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ budget: b, monthly: m, target: t, period, risk, age, purpose, hasEmergencyFund }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `エラーが発生しました（HTTP ${res.status}）`);
-      setPlan(data);
+
+      // ストリーミング前のエラー（APIキー未設定など）は通常のJSONで返る
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? `エラーが発生しました（HTTP ${res.status}）`);
+      }
+      if (!res.body) throw new Error("サーバーからの応答を読み取れませんでした");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let gotPlan = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const msg = JSON.parse(line);
+          if (msg.type === "status") {
+            setSteps((prev) => (prev[prev.length - 1] === msg.message ? prev : [...prev, msg.message]));
+          } else if (msg.type === "plan") {
+            setPlan(msg.plan);
+            gotPlan = true;
+          } else if (msg.type === "error") {
+            throw new Error(msg.error);
+          }
+        }
+      }
+      if (!gotPlan && !plan) throw new Error("プランを受信できませんでした。もう一度お試しください。");
     } catch (err) {
       setError((err as Error).message);
     } finally {
+      clearInterval(timer);
       setLoading(false);
     }
   }
 
   if (loading) {
     return (
-      <div className="loading-screen">
+      <div className="loading-screen progress-screen">
         <div className="spinner" />
         <p className="loading-title">プランを作成しています</p>
-        <p className="loading-sub">
-          最新の市場ニュースを調べ、制度の選択から
-          <br />
-          商品の組み合わせまで検討しています。1〜2分ほどお待ちください。
-        </p>
+        <p className="loading-sub num">経過時間 {Math.floor(elapsed / 60)}分{(elapsed % 60).toString().padStart(2, "0")}秒（目安：1〜2分）</p>
+        <ol className="progress-log">
+          {steps.map((s, i) => {
+            const isCurrent = i === steps.length - 1;
+            return (
+              <li key={i} className={isCurrent ? "current" : "done"}>
+                <span className="progress-marker">{isCurrent ? <span className="dot-pulse" /> : <CheckMark />}</span>
+                {s}
+              </li>
+            );
+          })}
+        </ol>
       </div>
     );
   }
