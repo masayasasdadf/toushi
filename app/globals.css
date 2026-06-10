@@ -497,6 +497,25 @@ fieldset.form-section legend.form-section-title + * { clear: both; }
 .product-meta { font-size: 0.76rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .product-amount { font-size: 0.98rem; font-weight: 700; white-space: nowrap; }
 
+.price-verified {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 1px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+.price-note {
+  font-size: 0.78rem;
+  color: var(--warn);
+  background: var(--warn-soft);
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-top: 6px;
+}
+
 .product-details {
   margin-top: 13px;
   padding-top: 13px;

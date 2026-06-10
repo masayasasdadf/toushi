@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { fetchQuotes } from "@/lib/fetchQuotes";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -100,7 +101,8 @@ export async function POST(req: NextRequest) {
   ]
 }
 
-simulationは積立額も含めた概算で計算すること。`;
+simulationは積立額も含めた概算で計算すること。
+個別株の価格はあなたの知識時点の概算で構いません（サーバー側でリアルタイム株価を取得して株数と金額を再計算します）。`;
 
   try {
     const client = new Anthropic();
@@ -118,6 +120,40 @@ simulationは積立額も含めた概算で計算すること。`;
     if (!jsonMatch) throw new Error("AIの応答からプランを読み取れませんでした");
 
     const plan = JSON.parse(jsonMatch[0]);
+
+    // 個別株はAIの概算価格のままにせず、リアルタイム株価で株数・金額を組み直す
+    if (Array.isArray(plan.products)) {
+      await Promise.all(
+        plan.products.map(async (p: { type: string; code: string; amount: number; shares: number; currentPrice?: number; priceChecked?: boolean; priceNote?: string }) => {
+          if (p.type !== "stock" || !/^\d{4}$/.test(p.code ?? "")) return;
+          try {
+            const q = await fetchQuotes(`${p.code}.T`);
+            const price = q.closes[q.closes.length - 1];
+            if (!price || price <= 0) return;
+            p.currentPrice = Math.round(price);
+            p.priceChecked = true;
+            const lot = 100;
+            const lots = Math.floor(p.amount / (price * lot));
+            if (lots >= 1) {
+              p.shares = lots * lot;
+              p.amount = Math.round(p.shares * price);
+            } else {
+              // 予算内で1単元（100株）が買えない → 単元未満株での金額指定購入を案内
+              p.shares = 0;
+              p.priceNote = `現在株価は約${Math.round(price).toLocaleString()}円。100株単位だと約${Math.round(price * lot).toLocaleString()}円必要なため、単元未満株（S株・ミニ株）での金額指定購入をおすすめします。`;
+            }
+          } catch {
+            p.priceChecked = false;
+          }
+        })
+      );
+
+      // 実価格で組み直した後の合計と残金を再計算
+      const total = plan.products.reduce((s: number, p: { amount: number }) => s + (p.amount || 0), 0);
+      plan.totalInvested = total;
+      plan.remainingCash = Math.max(0, budget - total);
+    }
+
     return NextResponse.json(plan);
   } catch (e) {
     console.error("plan generation error:", e);

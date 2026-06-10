@@ -33,6 +33,9 @@ type Plan = {
     reason: string;
     sellRule: string;
     risk: string;
+    currentPrice?: number;
+    priceChecked?: boolean;
+    priceNote?: string;
   }[];
   totalInvested: number;
   remainingCash: number;
@@ -209,7 +212,10 @@ export default function PlanWizard() {
                   <div className="product-meta">
                     {p.code && `${p.code} ・ `}
                     {p.shares > 0 ? `${p.shares}株` : "金額指定で購入"}
+                    {p.priceChecked && p.currentPrice ? ` ・ 現在値 ¥${fmt(p.currentPrice)}` : ""}
                   </div>
+                  {p.priceChecked && <span className="price-verified">リアルタイム株価で計算済み</span>}
+                  {p.priceNote && <p className="price-note">{p.priceNote}</p>}
                 </div>
                 <div className="product-amount num">¥{fmt(p.amount)}</div>
               </div>
