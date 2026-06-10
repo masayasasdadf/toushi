@@ -107,7 +107,7 @@ simulationは積立額も含めた概算で計算すること。`;
     const message = await client.messages.create({
       model: "claude-fable-5",
       max_tokens: 20000,
-      thinking: { type: "enabled", budget_tokens: 10000 },
+      thinking: { type: "adaptive" },
       messages: [{ role: "user", content: prompt }],
     });
 
