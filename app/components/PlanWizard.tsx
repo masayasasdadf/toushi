@@ -15,6 +15,7 @@ type Suitability = "high" | "mid" | "low";
 
 type Plan = {
   summary: string;
+  marketContext?: string;
   feasibility: { verdict: string; requiredAnnualReturn: number; comment: string };
   accountAdvice: {
     recommended: string;
@@ -97,9 +98,9 @@ export default function PlanWizard() {
         <div className="spinner" />
         <p className="loading-title">プランを作成しています</p>
         <p className="loading-sub">
-          制度の選択から商品の組み合わせまで検討しています。
+          最新の市場ニュースを調べ、制度の選択から
           <br />
-          30〜60秒ほどお待ちください。
+          商品の組み合わせまで検討しています。1〜2分ほどお待ちください。
         </p>
       </div>
     );
@@ -117,6 +118,17 @@ export default function PlanWizard() {
           <p className="eyebrow">あなたの投資プラン</p>
           <p className="plan-summary-text">{plan.summary}</p>
         </section>
+
+        {plan.marketContext && (
+          <section className="card">
+            <div className="card-head">
+              <IconTrendUp className="card-head-icon" />
+              <h3>いまの市場環境</h3>
+            </div>
+            <p className="body-text">{plan.marketContext}</p>
+            <p className="meta-text">最新のニュース・市況をWeb検索で確認したうえで判断しています。</p>
+          </section>
+        )}
 
         <section className={`card feasibility-card ${verdictClass}`}>
           <div className="card-head">

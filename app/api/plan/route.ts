@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { fetchQuotes } from "@/lib/fetchQuotes";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -38,6 +38,14 @@ export async function POST(req: NextRequest) {
 - 投資の目的: ${purposeLabel}
 - 生活防衛資金（生活費3〜6ヶ月分の貯金）: ${hasEmergencyFund ? "確保できている" : "確保できていない"}
 
+【最新情報の収集（必須）】
+プランを作る前に、必ずWeb検索で以下を確認してから判断すること：
+- 直近の日本株市場・米国株市場の状況（日経平均・S&P500の水準とトレンド）
+- 推薦しようとしている個別株の最新ニュース（決算、不祥事、業績見通し）。悪材料が出ている銘柄は推薦しない
+- 金利・為替など現在のマクロ環境
+- NISA・iDeCoの最新の制度内容（年間投資枠など）
+検索で得た事実は、銘柄選定の理由・リスク説明・市況コメントに反映すること。
+
 【アドバイスの方針（厳守）】
 1. まず最適な「制度・口座」を判断する：新NISA（つみたて投資枠/成長投資枠）、iDeCo、特定口座のどれを使うべきか。非課税メリット、資金拘束（iDeCoは60歳まで引き出せない）、目的との整合性を考慮する。
 2. 初心者の失敗パターンを避ける設計にする：集中投資、高値掴み、生活資金まで投資、短期での個別株集中、信託報酬の高い商品、を避ける。
@@ -48,6 +56,7 @@ export async function POST(req: NextRequest) {
 以下のJSON形式のみで回答してください（マークダウン記法、コードブロック、JSON以外の文章は一切不要）:
 {
   "summary": "プラン全体の要約。初心者に優しく2〜3文",
+  "marketContext": "Web検索で確認した現在の市場環境の要約と、それがこのプランにどう影響したか。初心者向けに3〜4文",
   "feasibility": {
     "verdict": "realistic | challenging | unrealistic のいずれか",
     "requiredAnnualReturn": 目標達成に必要な概算年利（%・数値）,
@@ -110,13 +119,18 @@ simulationは積立額も含めた概算で計算すること。
       model: "claude-fable-5",
       max_tokens: 20000,
       thinking: { type: "adaptive" },
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
       messages: [{ role: "user", content: prompt }],
     });
 
-    const textBlock = message.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") throw new Error("AIの応答にテキストが含まれていません");
+    // 検索を挟むとtextブロックが複数に分かれるため、全て連結してからJSONを抽出する
+    const fullText = message.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("\n");
+    if (!fullText) throw new Error("AIの応答にテキストが含まれていません");
 
-    const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
+    const jsonMatch = fullText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("AIの応答からプランを読み取れませんでした");
 
     const plan = JSON.parse(jsonMatch[0]);
