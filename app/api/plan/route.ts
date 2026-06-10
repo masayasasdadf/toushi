@@ -39,6 +39,62 @@ function sanitizeJsonString(raw: string): string {
   return result;
 }
 
+// 構造化出力スキーマ：APIレベルで有効なJSONのみを返すことを保証する
+const obj = (properties: Record<string, unknown>) => ({
+  type: "object",
+  properties,
+  required: Object.keys(properties),
+  additionalProperties: false,
+});
+const str = { type: "string" };
+const num = { type: "number" };
+const strArr = { type: "array", items: str };
+const scenario = obj({ label: str, year1: num, year5: num, year10: num });
+
+const PLAN_SCHEMA = obj({
+  summary: str,
+  marketContext: str,
+  feasibility: obj({
+    verdict: { type: "string", enum: ["realistic", "challenging", "unrealistic"] },
+    requiredAnnualReturn: num,
+    comment: str,
+  }),
+  accountAdvice: obj({
+    recommended: str,
+    reason: str,
+    comparison: {
+      type: "array",
+      items: obj({
+        name: str,
+        suitability: { type: "string", enum: ["high", "mid", "low"] },
+        point: str,
+      }),
+    },
+    howToStart: str,
+  }),
+  allocation: { type: "array", items: obj({ label: str, percent: num, amount: num, why: str }) },
+  products: {
+    type: "array",
+    items: obj({
+      type: { type: "string", enum: ["fund", "stock"] },
+      name: str,
+      code: str,
+      amount: num,
+      shares: num,
+      description: str,
+      reason: str,
+      sellRule: str,
+      risk: str,
+    }),
+  },
+  totalInvested: num,
+  remainingCash: num,
+  monthlyPlan: str,
+  simulation: obj({ conservative: scenario, expected: scenario, optimistic: scenario }),
+  failureGuards: strArr,
+  nextActions: strArr,
+});
+
 export async function POST(req: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
@@ -165,6 +221,7 @@ simulationは積立額も含めた概算で計算すること。
           max_tokens: 20000,
           thinking: { type: "adaptive" },
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
+          output_config: { format: { type: "json_schema", schema: PLAN_SCHEMA } },
           messages: [{ role: "user", content: prompt }],
         });
 
@@ -191,19 +248,21 @@ simulationは積立額も含めた概算で計算すること。
 
         const message = await msgStream.finalMessage();
 
-        // 検索を挟むとtextブロックが複数に分かれるため、全て連結してからJSONを抽出する
-        const fullText = message.content
-          .filter((b): b is Anthropic.TextBlock => b.type === "text")
-          .map((b) => b.text)
-          .join("\n");
-        if (!fullText) throw new Error("AIの応答にテキストが含まれていません");
+        // 構造化出力により最終テキストブロックはスキーマ準拠のJSONであることが保証される
+        const textBlocks = message.content.filter((b): b is Anthropic.TextBlock => b.type === "text");
+        if (textBlocks.length === 0) throw new Error("AIの応答にテキストが含まれていません");
+        const finalText = textBlocks[textBlocks.length - 1].text;
 
-        const jsonMatch = fullText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("AIの応答からプランを読み取れませんでした");
-
-        // JSON文字列内の制御文字（タブ・改行以外）を安全にエスケープしてからパース
-        const safeJson = sanitizeJsonString(jsonMatch[0]);
-        const plan = JSON.parse(safeJson);
+        let plan;
+        try {
+          plan = JSON.parse(finalText);
+        } catch {
+          // 念のためのフォールバック：全テキストからJSONを抽出してサニタイズ
+          const fullText = textBlocks.map((b) => b.text).join("\n");
+          const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) throw new Error("AIの応答からプランを読み取れませんでした");
+          plan = JSON.parse(sanitizeJsonString(jsonMatch[0]));
+        }
         status("リアルタイム株価を取得して株数を計算しています");
 
         // 個別株はAIの概算価格のままにせず、リアルタイム株価で株数・金額を組み直す
